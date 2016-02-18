@@ -4,6 +4,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -14,6 +15,12 @@ import com.qwm.idcarddemo.utils.IDCardReadUtils;
 import com.qwm.idcarddemo.utils.StringUtils;
 import com.qwm.idcarddemo.view.OneColumDialog;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.List;
 
@@ -28,6 +35,10 @@ import android_serialport_api.SerialPortFinder;
  * @Description: 身份证demo
  */
 public class MainActivity extends AppCompatActivity {
+    private static Process localProcess1;
+    private static String str;
+    private static BufferedReader localBufferedReader;
+    private static StringBuilder localStringBuilder;
     /**
      * 设备的地址
      */
@@ -81,10 +92,11 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * 选择波特率
+     *
      * @param view
      */
     public void selectBauteRate(View view) {
-        OneColumDialog dialog = new OneColumDialog(this,getAllBautRate(),new OneColumDialog.SelectListener() {
+        OneColumDialog dialog = new OneColumDialog(this, getAllBautRate(), new OneColumDialog.SelectListener() {
             @Override
             public void selected(int position, String value) {
                 bauteRateTv.setText(value);
@@ -95,15 +107,16 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * 选择设备地址
+     *
      * @param view
      */
     public void selectAddress(View view) {
         List<String> list = getAllDevicesPath();
-        if(list==null ||list.size()<=0){
-            Toast.makeText(this,"木有串口设备哦",Toast.LENGTH_SHORT).show();
+        if (list == null || list.size() <= 0) {
+            Toast.makeText(this, "木有串口设备哦", Toast.LENGTH_SHORT).show();
             return;
         }
-        OneColumDialog dialog = new OneColumDialog(this,list,new OneColumDialog.SelectListener() {
+        OneColumDialog dialog = new OneColumDialog(this, list, new OneColumDialog.SelectListener() {
             @Override
             public void selected(int position, String value) {
                 addressTv.setText(value);
@@ -114,21 +127,23 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * 读取
+     *
      * @param view
      */
     public void readIdCard(View view) {
+        Toast.makeText(this,this.getFilesDir().toString(),Toast.LENGTH_SHORT).show();
         //1.硬件地址判断
         String adress = addressTv.getText().toString().trim();
         adress = "/dev/ttyS3";
-        if ("".equals(adress)){
-            Toast.makeText(this,"请选择硬件地址",Toast.LENGTH_SHORT).show();
+        if ("".equals(adress)) {
+            Toast.makeText(this, "请选择硬件地址", Toast.LENGTH_SHORT).show();
             return;
         }
         //2.波特率判断
         String bauteStr = bauteRateTv.getText().toString().trim();
         bauteStr = "115200";
-        if ("".equals(bauteStr)){
-            Toast.makeText(this,"请选择波特率",Toast.LENGTH_SHORT).show();
+        if ("".equals(bauteStr)) {
+            Toast.makeText(this, "请选择波特率", Toast.LENGTH_SHORT).show();
             return;
         }
         new IDCardReadUtils(this).queryIdCardInfo(adress, Integer.parseInt(bauteStr), new IDCardReadUtils.IDCardListener() {
@@ -136,25 +151,104 @@ public class MainActivity extends AppCompatActivity {
             public void onInfo(IdCardBean bean) {
                 //输出身份证信息
                 infoTv.setText(bean.word.toMyString());
-                headIv.setImageBitmap(bytes2Bimap(bean.headImage));
+//                headIv.setImageBitmap(bytes2Bimap(bean.headImage));
             }
         });
     }
 
     /**
      * 二进制转为图片
+     *
      * @param b
      * @return
      */
-    private Bitmap bytes2Bimap(byte[] b){
-        if(b.length!=0){
-            return BitmapFactory.decodeByteArray(b, 0, b.length);
-        }
-        else {
+    private Bitmap bytes2Bimap(byte[] b) {
+        if (b.length != 0) {
+            return decodeImage(b);
+//            return BitmapFactory.decodeByteArray(b, 0, b.length);
+        } else {
             return null;
         }
 
     }
+
+    private Bitmap decodeImage(byte[] paramArrayOfByte) {
+        try {
+            Log.i("数组----",paramArrayOfByte.length+"");
+            Log.i("this.getFilesDir()",this.getFilesDir().toString());
+            FileOutputStream localFileOutputStream = this.openFileOutput("zp.bmp", 0);
+            localFileOutputStream.write(paramArrayOfByte);
+            localFileOutputStream.flush();
+            String str1 = this.getFilesDir().toString() + "/decodeIDcard " + this.getFilesDir().toString() + "/" + "zp.bmp";//wlt
+            Log.e("ID2Manager", "command:" + str1);
+            boolean bool = execCommand(str1, this.getFilesDir());
+            String str2 = this.getFilesDir().toString() + "/zp.bmp";
+            Log.i("str2----",str2);
+            Log.e("ID2Manager", "img:" + str2);
+            Bitmap localBitmap = null;
+//            if (bool)
+                localBitmap = BitmapFactory.decodeFile(str2);
+            Log.i("localBitmap---------",localBitmap==null?"null":"is not null");
+            return localBitmap;
+        } catch (FileNotFoundException localFileNotFoundException) {
+            while (true)
+                localFileNotFoundException.printStackTrace();
+        } catch (IOException localIOException) {
+            while (true)
+                localIOException.printStackTrace();
+        }
+    }
+
+    private static boolean execCommand(String paramString, File paramFile) {
+        Runtime localRuntime = Runtime.getRuntime();
+        Log.e("ID2Manager", "execCommand path is " + paramFile);
+        try {
+            Process localProcess2 = localRuntime.exec(paramString, null, paramFile);
+            localProcess1 = localProcess2;
+            boolean bool = false;
+            if (localProcess1 != null) {
+                localBufferedReader = new BufferedReader(new InputStreamReader(localProcess1.getInputStream()));
+                localStringBuilder = new StringBuilder("");
+            }
+        }
+        catch (IOException localIOException1) {
+//            try {
+//                BufferedReader localBufferedReader;
+////                str = localBufferedReader.readLine();
+////                if (str != null) ;
+//            } catch (Exception localIOException2) {
+//                try {
+//                    while (true) {
+//                        StringBuilder localStringBuilder;
+//                        String str;
+//                        if (localProcess1.waitFor() != 0)
+//                            System.err.println("exit value = " + localProcess1.exitValue());
+//                        boolean bool = true;
+//                        return bool;
+////                        localIOException1 = localIOException1;
+////                        Log.e("ID2Manager", "execCommand method error in 1 :\n" + localIOException1.getMessage());
+////                        Process localProcess1 = null;
+//                        continue;
+//                        localStringBuilder.append(str);
+//                        localStringBuilder.append('\n');
+//                        Log.d("ID2Manager", "exec : " + str);
+//                        continue;
+//                        localIOException2 = localIOException2;
+//                        Log.e("ID2Manager", "execCommand method error in 2 :\n" + localIOException2.getMessage());
+//                    }
+//                } catch (InterruptedException localInterruptedException) {
+//                    while (true)
+//                        Log.e("ID2Manager", "execCommand method error in 3 :\n" + localInterruptedException.getMessage());
+//                }
+//            }
+        }
+        return false;
+    }
+
+
+
+
+
 
     private Bitmap headXm(){
         String xxx = "574c66007e00320000ff851e5151513e710dd564f3d4095724f3ddf895443cfc59639173e02bfd562ab0078aee612fc793653e8c03f3ce9f348010127b23d5abb0a24bbde4c4ef4b8eb622c86687c2a0a0dd55d5dba16c137de1ce6951aed55251515a3e8160b84f172ba67d1ca405f39b09d6a3cf2892e87c28a696ece08f6cb37ee4d93916c66970b8d78db0165b2558ba157d44f34bed4d02382f4810f1f8a61588abeefe4259ccb2a37299bac8813ec3d57e2cedfefaf015301ecdafc4e2aa3129788416c1114abae5c5037d0ae71cb671af176d72b3f7ab8fb2d8d34f1e9ccc973d759f2c6cfbc706b405c7a28ebc0b73972584958d447cbe2aa67318879fac3094688ae8a22706477117a7975129fa17d6a9a3d42245312f1a0876752a5efac95c5877209626ba443bc424f2e827c190bb30b95db5525358ddfa16ffe9adb2e0de5b90bd47a1856fd8f3d0e38ed220170217e2ae5168873722f674e01bafb21b74b44d3232386740dc5c6829e2cd1d46118dbc443d00ec60d99226121f815339327e4617014b98bf5509554144c635b27e90fb8bc3ae51c5bfc7db37987c901e0de044f0b5e51d4d7742d5ec60d80caa7641797fedcb78d73e09d529d5906a6f4c2a2740df30426df9a8ececd4828c9fd70489b3f3f206bd8161ccc5518d55da71a24a2b7aff2ad474565eec35d7dd1561b550b5bbf2de58261650417efcc0fec1a02f53737e92f66e73c09121048d922f982bb480b986c032e23a3a0ef75ac9f00ea903f0fa978ef9313a3ba7a615c2df4e32edb7e0656aae515c1fefdd8269c4a7c1c37d2b0578f6084a2a8194ea369d3cf1bbe418765b410300327d0516ddc2792fed098922286095873a28a4a1fbd704a2c2369b1ca6126e18cde598d0c9e9167f1d302aea0df69fbb578d34f423f86bf4447b96dcdd7b6a5666881cd8b33e719ba56ea111d84e148ede9702fbc8856285f7907d22d6d3c097ca7c576f57608d34e7c8117ee10ce7d558d2cf98479b30ae514a1e88a4dae9e19346ca976a0248a3774bc30c24bb5ea025b5c87cde62153922e61e914fa4f9c8604235452f4b4366ae51157346215d3cb5075f04e937962fabc6af9ebd91e98832d88daf47d7d29361edadc93ce84b7313a5efc484ed737c45d9d8c59f88388fb28b2b9289057e344b0b08fdfa60ffcb761583115b632df7b037d80dfca568636843ac9b2c02905a3ef2462db40fbb338bae51dea81011adb54ea28a0179f42deefd1831e85a177f4b3f27e929c1795da7851ef5359b679b67b7b2d325abdf4bcfb43f627c3f7655fd4ca7a34d27214b2c00ed42ffb0f63a5a3e84b4a0a328829152fb7ea842591d364a055ff4f890ce4f1a775e96a62d21ba068f7ae162ed2a55edbdd289512c1199e2172ae0d1c8a66bf0efb68f563253b611db3f1761344ed1de";
