@@ -3,6 +3,8 @@ package com.qwm.idcarddemo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
+import android.os.Environment;
+import android.os.RemoteException;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
@@ -12,15 +14,14 @@ import android.widget.Toast;
 
 import com.qwm.idcarddemo.bean.IdCardBean;
 import com.qwm.idcarddemo.utils.IDCardReadUtils;
-import com.qwm.idcarddemo.utils.StringUtils;
 import com.qwm.idcarddemo.view.OneColumDialog;
+import com.synjones.bluetooth.DecodeWlt;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.List;
 
@@ -125,23 +126,24 @@ public class MainActivity extends AppCompatActivity {
         dialog.show();
     }
 
+
+    public void readIdCard1(View view) {
+        xmxxxx();
+    }
     /**
-     * 读取
+     * 读取 身份证信息
      *
      * @param view
      */
     public void readIdCard(View view) {
-        Toast.makeText(this,this.getFilesDir().toString(),Toast.LENGTH_SHORT).show();
         //1.硬件地址判断
         String adress = addressTv.getText().toString().trim();
-        adress = "/dev/ttyS3";
         if ("".equals(adress)) {
             Toast.makeText(this, "请选择硬件地址", Toast.LENGTH_SHORT).show();
             return;
         }
         //2.波特率判断
         String bauteStr = bauteRateTv.getText().toString().trim();
-        bauteStr = "115200";
         if ("".equals(bauteStr)) {
             Toast.makeText(this, "请选择波特率", Toast.LENGTH_SHORT).show();
             return;
@@ -151,99 +153,192 @@ public class MainActivity extends AppCompatActivity {
             public void onInfo(IdCardBean bean) {
                 //输出身份证信息
                 infoTv.setText(bean.word.toMyString());
+                decodeImagexxx(bean.headImage);
+                //头像的处理，先不处理
 //                headIv.setImageBitmap(bytes2Bimap(bean.headImage));
+//                try {
+//                    if (bean.headImage != null) {
+//                        byte[] bbbb = decode(bean.headImage);
+////                        Bitmap bmp = BitmapFactory.decodeByteArray(bbbb, 0, bbbb.length);
+////                        headIv.setImageBitmap(bmp);
+//                    }
+//                } catch (Exception e) {
+//
+//                }
+
+
             }
         });
     }
 
-    /**
-     * 二进制转为图片
-     *
-     * @param b
-     * @return
-     */
-    private Bitmap bytes2Bimap(byte[] b) {
-        if (b.length != 0) {
-            return decodeImage(b);
-//            return BitmapFactory.decodeByteArray(b, 0, b.length);
-        } else {
-            return null;
+   public String bmpPath =   "/sdcard/photo.bmp";
+    public String wltPath =  "/sdcard/photo.wlt";
+
+    public void decodeImagexxx(byte[] wlt) {
+        if (wlt == null) {
+            return;
         }
-
-    }
-
-    private Bitmap decodeImage(byte[] paramArrayOfByte) {
         try {
-            Log.i("数组----",paramArrayOfByte.length+"");
-            Log.i("this.getFilesDir()",this.getFilesDir().toString());
-            FileOutputStream localFileOutputStream = this.openFileOutput("zp.bmp", 0);
-            localFileOutputStream.write(paramArrayOfByte);
-            localFileOutputStream.flush();
-            String str1 = this.getFilesDir().toString() + "/decodeIDcard " + this.getFilesDir().toString() + "/" + "zp.bmp";//wlt
-            Log.e("ID2Manager", "command:" + str1);
-            boolean bool = execCommand(str1, this.getFilesDir());
-            String str2 = this.getFilesDir().toString() + "/zp.bmp";
-            Log.i("str2----",str2);
-            Log.e("ID2Manager", "img:" + str2);
-            Bitmap localBitmap = null;
-//            if (bool)
-                localBitmap = BitmapFactory.decodeFile(str2);
-            Log.i("localBitmap---------",localBitmap==null?"null":"is not null");
-            return localBitmap;
-        } catch (FileNotFoundException localFileNotFoundException) {
-            while (true)
-                localFileNotFoundException.printStackTrace();
-        } catch (IOException localIOException) {
-            while (true)
-                localIOException.printStackTrace();
-        }
-    }
+            File wltFile = new File(wltPath);
+            FileOutputStream fos = new FileOutputStream(wltFile);
+            fos.write(wlt);
+            fos.close();
 
-    private static boolean execCommand(String paramString, File paramFile) {
-        Runtime localRuntime = Runtime.getRuntime();
-        Log.e("ID2Manager", "execCommand path is " + paramFile);
-        try {
-            Process localProcess2 = localRuntime.exec(paramString, null, paramFile);
-            localProcess1 = localProcess2;
-            boolean bool = false;
-            if (localProcess1 != null) {
-                localBufferedReader = new BufferedReader(new InputStreamReader(localProcess1.getInputStream()));
-                localStringBuilder = new StringBuilder("");
+            DecodeWlt dw = new DecodeWlt();
+            int result = dw.Wlt2Bmp(wltPath, bmpPath);
+
+            if (result == 1) {
+                File f = new File(bmpPath);
+                if (f.exists())
+                    headIv.setImageBitmap(BitmapFactory
+                            .decodeFile(bmpPath));
+                else {
+//                    imageViewPhoto.setImageResource(R.drawable.photo);
+                }
+            } else {
+//                imageViewPhoto.setImageResource(R.drawable.photo);
             }
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
         }
-        catch (IOException localIOException1) {
-//            try {
-//                BufferedReader localBufferedReader;
-////                str = localBufferedReader.readLine();
-////                if (str != null) ;
-//            } catch (Exception localIOException2) {
-//                try {
-//                    while (true) {
-//                        StringBuilder localStringBuilder;
-//                        String str;
-//                        if (localProcess1.waitFor() != 0)
-//                            System.err.println("exit value = " + localProcess1.exitValue());
-//                        boolean bool = true;
-//                        return bool;
-////                        localIOException1 = localIOException1;
-////                        Log.e("ID2Manager", "execCommand method error in 1 :\n" + localIOException1.getMessage());
-////                        Process localProcess1 = null;
-//                        continue;
-//                        localStringBuilder.append(str);
-//                        localStringBuilder.append('\n');
-//                        Log.d("ID2Manager", "exec : " + str);
-//                        continue;
-//                        localIOException2 = localIOException2;
-//                        Log.e("ID2Manager", "execCommand method error in 2 :\n" + localIOException2.getMessage());
-//                    }
-//                } catch (InterruptedException localInterruptedException) {
-//                    while (true)
-//                        Log.e("ID2Manager", "execCommand method error in 3 :\n" + localInterruptedException.getMessage());
-//                }
-//            }
-        }
-        return false;
+
     }
+
+
+    /**
+     * 将加密的照片byte数据通过jni解析
+     *
+     * @param wlt 解密前
+     * @return 解密后
+     * @throws RemoteException 解密错误
+     */
+    public static byte[] decode(byte[] wlt) throws RemoteException {
+//        String bmpPath = "/data/data/com.cjy.filing/files/photo.bmp";
+//        String wltPath = "/data/data/com.cjy.filing/files/photo.wlt";
+
+//        String bmpPath = Environment.getExternalStorageDirectory().getPath() + "/photo.bmp";
+//        String wltPath = Environment.getExternalStorageDirectory().getPath() + "/photo.wlt";
+        String bmpPath =   "/sdcard/photo.bmp";
+        String wltPath =  "/sdcard/photo.wlt";
+
+        Log.i("bmpPath------------",bmpPath);
+
+        File wltFile = new File(wltPath);
+        File oldBmpPath = new File(bmpPath);
+        if (oldBmpPath.exists() && oldBmpPath.isFile()) {
+            oldBmpPath.delete();
+        }
+
+
+        try {
+            FileOutputStream fos = new FileOutputStream(wltFile);
+            fos.write(wlt);
+            fos.flush();
+            fos.close();
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        DecodeWlt dw = new DecodeWlt();
+
+        int result = dw.Wlt2Bmp(wltPath, bmpPath);
+        byte[] buffer = null;
+        FileInputStream fin;
+        try {
+            File bmpFile = new File(bmpPath);
+            fin = new FileInputStream(bmpFile);
+            int length = fin.available();
+            buffer = new byte[length];
+            fin.read(buffer);
+            fin.close();
+        } catch (Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        return buffer;
+    }
+
+
+
+
+    public void xmxxxx(){
+        String bmpPath =   "/sdcard/photo.bmp";
+        String wltPath =  "/sdcard/photo.wlt";
+        DecodeWlt dw = new DecodeWlt();
+
+        int result = dw.Wlt2Bmp(wltPath, bmpPath);
+        byte[] buffer = null;
+        FileInputStream fin;
+        try {
+            File bmpFile = new File(bmpPath);
+            fin = new FileInputStream(bmpFile);
+            int length = fin.available();
+            buffer = new byte[length];
+            fin.read(buffer);
+            fin.close();
+        } catch (Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        if(buffer!=null){
+            Bitmap bmp = BitmapFactory.decodeByteArray(buffer, 0, buffer.length);
+                        headIv.setImageBitmap(bmp);
+        }
+    }
+
+
+
+
+
+    /**
+     * 将加密的照片byte数据通过jni解析
+     *
+     * @param wlt 解密前
+     * @return 解密后
+     * @throws RemoteException 解密错误
+     */
+    public static byte[] decode1(byte[] wlt) throws RemoteException {
+//        String bmpPath = "/data/data/com.cjy.filing/files/photo.bmp";
+//        String wltPath = "/data/data/com.cjy.filing/files/photo.wlt";
+
+        String bmpPath = Environment.getExternalStorageDirectory().getPath() + "/photo.bmp";
+        String wltPath = Environment.getExternalStorageDirectory().getPath() + "/photo.wlt";
+
+        File wltFile = new File(wltPath);
+        File oldBmpPath = new File(bmpPath);
+        if (oldBmpPath.exists() && oldBmpPath.isFile()) {
+            oldBmpPath.delete();
+        }
+
+
+        try {
+            FileOutputStream fos = new FileOutputStream(wltFile);
+            fos.write(wlt);
+            fos.close();
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        DecodeWlt dw = new DecodeWlt();
+
+        int result = dw.Wlt2Bmp(wltPath, bmpPath);
+        byte[] buffer = null;
+        FileInputStream fin;
+        try {
+            File bmpFile = new File(bmpPath);
+            fin = new FileInputStream(bmpFile);
+            int length = fin.available();
+            buffer = new byte[length];
+            fin.read(buffer);
+            fin.close();
+        } catch (Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        return buffer;
+    }
+
+
 
 
 
